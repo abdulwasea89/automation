@@ -1,0 +1,16 @@
+[Unit]
+Description=WhatsApp Automation FastAPI Service
+After=network.target
+
+[Service]
+Type=simple
+User=abdulwasea
+WorkingDirectory=/home/abdulwasea/Documents/Abdul/projects/automation-project-/automation
+Environment=PATH=/home/abdulwasea/Documents/Abdul/projects/automation-project-/automation/.venv/bin
+Environment=PYTHONPATH=/home/abdulwasea/Documents/Abdul/projects/automation-project-/automation
+ExecStart=/home/abdulwasea/Documents/Abdul/projects/automation-project-/automation/.venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 

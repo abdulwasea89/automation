@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: whatsapp-automation:dev
+    ports:
+      - "8000:8080"
+    environment:
+      # Google Cloud Configuration
+      - PROJECT_ID=ai-chatbot-463111
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=YOUR_OPENAI_API_KEY_HERE
+      
+      # Shopify Configuration
+      - SHOPIFY_API_KEY=YOUR_SHOPIFY_API_KEY_HERE
+      - SHOPIFY_API_PASSWORD=YOUR_SHOPIFY_API_PASSWORD_HERE
+      - SHOPIFY_STORE_NAME=835e8e
+      
+      # Zoko Configuration
+      - ZOKO_API_KEY=YOUR_ZOKO_API_KEY_HERE
+      - ZOKO_API_URL=https://chat.zoko.io/v2/message
+      
+      # API Configuration
+      - API_KEY=YOUR_API_KEY_HERE
+      
+      # Rate Limiting
+      - RATE_LIMIT=30
+      - RATE_PERIOD=60
+      
+      # Caching
+      - CACHE_TTL=3600
+      
+      # Application Configuration
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./src:/app/src
+      - ./service-account.json:/app/service-account.json:ro
+      - ./zoko_templates.json:/app/zoko_templates.json:ro
+      - ./templates.json:/app/templates.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Redis for caching in development
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   restart: unless-stopped
+
+# volumes:
+#   redis_data:

@@ -1,0 +1,42 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/whatsapp-automation:$COMMIT_SHA', '.']
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/whatsapp-automation:$COMMIT_SHA']
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'whatsapp-automation'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/whatsapp-automation:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--max-instances'
+      - '10'
+      - '--timeout'
+      - '300'
+      - '--set-env-vars'
+      - 'GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json,PROJECT_ID=ai-chatbot-463111,OPENAI_API_KEY=YOUR_OPENAI_API_KEY_HERE,SHOPIFY_API_KEY=YOUR_SHOPIFY_API_KEY_HERE,SHOPIFY_API_PASSWORD=YOUR_SHOPIFY_API_PASSWORD_HERE,SHOPIFY_STORE_NAME=835e8e,ZOKO_API_KEY=YOUR_ZOKO_API_KEY_HERE,ZOKO_API_URL=https://chat.zoko.io/v2/message,API_KEY=YOUR_API_KEY_HERE,RATE_LIMIT=30,RATE_PERIOD=60,CACHE_TTL=3600,DEBUG=false,LOG_LEVEL=INFO'
+
+# Store images in Google Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/whatsapp-automation:$COMMIT_SHA'
+
+# Build timeout
+timeout: '1200s'

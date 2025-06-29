@@ -1,0 +1,34 @@
+# Cloud Functions specific requirements
+functions-framework==3.4.0
+flask==2.3.3
+
+# Core dependencies
+fastapi==0.104.1
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Google Cloud dependencies
+google-cloud-firestore==2.13.1
+google-cloud-storage==2.10.0
+google-auth==2.23.4
+
+# OpenAI and AI dependencies
+openai==1.3.7
+agents==0.1.0
+
+# HTTP and API dependencies
+requests==2.31.0
+httpx==0.25.2
+
+# Environment and configuration
+python-dotenv==1.0.0
+
+# Async and concurrency
+asyncio==3.4.3
+anyio==3.7.1
+
+# Caching and rate limiting
+tenacity==8.2.3
+
+# Logging and monitoring
+structlog==23.2.0 
