@@ -1,0 +1,462 @@
+[
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "buttonTemplate",
+    "templateId": "zoko_upsell_product_01",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Hope you like {{2}}\nWe should have told you this earlier, but we just realized something's gonna make your life infinitely better!\n-----\nOrder {{3}}\n-----\n*Buy Now* and enjoy!!\nFooter: Powered by Zoko\nButtons: [Buy Now] {{4}}\n",
+    "templateVariableCount": 4,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "welcome___product_finder_flow",
+    "templateLanguage": "en",
+    "templateDesc": "Body: 👋 Hi! Welcome to LEVA – digital house projects with instant budgets.\n\nWould you like help with:\nButtons: [Finding a project] {{1}}, [Viewing your budget] {{2}}, [Contacting support] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "affiliate_program",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Interested in joining our affiliate program?\nPlease select an option:\nFooter: To register, just send us your email address\nButtons: [Register as new] {{1}}, [Payout questions] {{2}}, [Products promotion] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "abandoned_cart_reminder_flow_real",
+    "templateLanguage": "en",
+    "templateDesc": "Body: 👋 Hey! You left a project in your cart on LEVA.  \nReady to continue?\nFooter: Need help deciding or customizing? Just reply \"Help\"\nButtons: [Resume here] {{1}}\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "welcome___product_finder_flow_german",
+    "templateLanguage": "de",
+    "templateDesc": "Body: 👋 Hallo! Willkommen bei LEVA – digitale Hausprojekte mit Sofortbudgets.\n\nBenötigen Sie Hilfe bei:\nButtons: [Ein Projekt finden] {{1}}, [Anzeigen Ihres Budge] {{2}}, [Support kontaktieren] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "welcome___product_finder_flow_czech",
+    "templateLanguage": "cs",
+    "templateDesc": "Body: 👋 Ahoj! Vítejte u LEVA – digitálních projektů domů s okamžitými rozpočty.\n\nPotřebujete pomoc s:\nButtons: [Hledání projektu] {{1}}, [Zobrazení vašeho roz] {{2}}, [Kontaktování podpory] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "finding_a_project_czech_",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Skvělé! O jaký typ domu máte zájem?\nButtons: [Malý dům] {{1}}, [Rodinný dům] {{2}}, [Off-grid / Eko] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "finding_a_project_german",
+    "templateLanguage": "de",
+    "templateDesc": "Body: Super! Für welchen Haustyp interessieren Sie sich?\nButtons: [Winziges Haus] {{1}}, [Einfamilienhaus] {{2}}, [Off-Grid / Öko] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "template",
+    "templateId": "_cooperation_czech",
+    "templateLanguage": "cs",
+    "templateDesc": "Body: Dobrý den! Děkujeme za váš zájem o spolupráci s námi.\nDejte nám vědět, o jaký druh spolupráce máte zájem:\nFooter: Prosím, sdělte nám stručně informace o sobě, webové stránky,\n",
+    "templateVariableCount": 0,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "template",
+    "templateId": "_cooperation_german",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Hallo! Vielen Dank für Ihr Interesse an einer Zusammenarbeit.\nTeilen Sie uns mit, welche Art der Zusammenarbeit Sie sich wünschen:\nFooter: Bitte erzählen Sie uns kurz etwas über sich selbst, Website,\n",
+    "templateVariableCount": 0,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "affiliate_program_czech",
+    "templateLanguage": "cs",
+    "templateDesc": "Body: Máte zájem o vstup do našeho partnerského programu?\nVyberte prosím jednu z možností:\nFooter: Pro registraci nám stačí poslat svou e-mailovou adresu\nButtons: [Zaregistrujte se jak] {{1}}, [Výplatní otázky] {{2}}, [Propagace produktů] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "affiliate_program_german",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Möchten Sie an unserem Partnerprogramm teilnehmen?\nBitte wählen Sie eine Option:\nFooter: Zur Anmeldung senden Sie uns einfach Ihre E-Mail-Adresse\nButtons: [Als Neu registrieren] {{1}}, [Fragen zur Auszahlun] {{2}}, [Produktwerbung] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "project_customisation",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Want to customize a project to fit your needs?\nPlease choose one of the following:\nFooter: Please send us the project name and reason for adjust\nButtons: [Change size/layout] {{1}}, [construction type] {{2}}, [Match project - plot] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "project_customisation_german",
+    "templateLanguage": "de",
+    "templateDesc": "Body: Möchten Sie ein Projekt an Ihre Bedürfnisse anpassen?\nBitte wählen Sie eine der folgenden Optionen:\nFooter: Bitte senden Sie uns den Projektnamen und den Grund\nButtons: [Größe/Layout ändern] {{1}}, [Bauart] {{2}}, [Projekt – Handlung a] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "project_customisation_czech",
+    "templateLanguage": "cs",
+    "templateDesc": "Body: Chcete si projekt přizpůsobit svým potřebám?\nVyberte si prosím jednu z následujících možností:\nFooter: Zašlete nám prosím název projektu a důvod úpravy\nButtons: [Změnit velikost/rozv] {{1}}, [konstrukční typ] {{2}}, [Projekt zápasu - záp] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "abandoned_cart_reminder_flow_real_german",
+    "templateLanguage": "de",
+    "templateDesc": "Body: 👋 Hey! Du hast ein Projekt in deinem Warenkorb auf LEVA gelassen.\nBereit zum Fortfahren?\n\nBrauchen Sie Hilfe bei der Entscheidung oder Anpassung? Antworten Sie einfach mit \"Hilfe\"\nFooter: Brauchen Sie Hilfe bei der Entscheidung? Antworten Sie einfa\nButtons: [Hier weitermachen] {{1}}\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "abandoned_cart_reminder_flow_real_czech",
+    "templateLanguage": "en",
+    "templateDesc": "Body: 👋 Ahoj! Nechal jsi projekt v košíku na LEVA. \nJsi připraven/a pokračovat?\n\nPotřebujete pomoc s výběrem nebo úpravou? Stačí odpovědět s textem \"Nápověda\".\nButtons: [Pokračovat zde] {{1}}\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "technical_support",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Hi there! What kind of technical issue are you experiencing?\nPlease select a category:\nFooter: Describe your issue in detail. Screenshots are helpful too.\nButtons: [Configuration issues] {{1}}, [3D/AR wrong display] {{2}}, [not downloading] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "buttonTemplate",
+    "templateId": "zoko_opt_out_6",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Please confirm that you would like to Opt Out of receiving messages from us on WhatsApp.\n-----\nFooter: Powered by Zoko\nButtons: [OPT OUT CONFIRM] {{2}}, [CANCEL] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "technical_support_german",
+    "templateLanguage": "de",
+    "templateDesc": "Body: Hallo! Welches technische Problem tritt bei Ihnen auf?\nBitte wählen Sie eine Kategorie:\nFooter: Beschreiben Sie Ihr Problem detailliert. Screenshots sind eb\nButtons: [Konfigurationsproble] {{1}}, [3D/AR falsche Anzeig] {{2}}, [wird nicht herunterg] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "order_confirmation_real",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Thank you for your order! Your LEVA project is ready.\n\nYou can now access:\nFooter: Questions? Just reply anytime.\nButtons: [Material & delivery] {{1}}\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "template",
+    "templateId": "contact_support",
+    "templateLanguage": "en",
+    "templateDesc": " Sure! One of our team members will reply shortly.  \nYou can also reach us by email at {{1}} .\n\nWould you like to leave a message while you wait?\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "order_confirmation_real_german",
+    "templateLanguage": "de",
+    "templateDesc": "Body: Vielen Dank für Ihre Bestellung! Ihr LEVA-Projekt ist fertig.\n\nSie haben jetzt Zugriff auf:\nFooter: Fragen? Antworten Sie einfach jederzeit.\nButtons: [Material & Lieferung] {{1}}\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "finding_a_project",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Great! What type of house are you interested in?\nButtons: [Tiny house] {{1}}, [Family home] {{2}}, [Off-grid / Eco] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "buttonTemplate",
+    "templateId": "__cod_confirmation_notification__002",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Hi {{2}}\nThank you for ordering from {{3}}\nPlease review the details here - {{4}} and *Confirm your Order*\nFooter: Powered by Zoko\nButtons: [Confirm Order] {{5}}, [Cancel Order] {{6}}\n",
+    "templateVariableCount": 6,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "technical_support_czech",
+    "templateLanguage": "cs",
+    "templateDesc": "Body: Dobrý den! Jaký technický problém máte?\nVyberte prosím kategorii:\nFooter: Popište svůj problém podrobně. Užitečné jsou i snímky obrazo\nButtons: [Problémy s konfigura] {{1}}, [Špatné 3D/AR zobraze] {{2}}, [nestahování] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "budget_view_czech_",
+    "templateLanguage": "cs",
+    "templateDesc": "Body: Chcete-li zobrazit svůj aktuální rozpočet, sdělte nám prosím e-mail, který jste použili při placení, nebo se přihlaste do svého zákaznického portálu: {{1}}\n\nChcete pomoci s aktualizací vašich preferencí nebo materiálů?\nButtons: [Ano] {{2}}, [NEIN] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "budget_view_german",
+    "templateLanguage": "de",
+    "templateDesc": "Body: Um Ihr aktuelles Budget einzusehen, geben Sie bitte die E-Mail-Adresse an, die Sie beim Bezahlvorgang verwendet haben, oder melden Sie sich in Ihrem Kundenportal an: {{1}}\n\nBenötigen Sie Hilfe bei der Aktualisierung Ihrer Präferenzen oder Materialien?\nButtons: [Ja] {{2}}, [NEIN] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "buttonTemplate",
+    "templateId": "zoko_order_confirm_and_feedback_image",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Hi {{2}}\nThank you for being a valuable customer. Would you consider giving us a review? 🤔\nFooter: Powered by Zoko\nButtons: [Yes definitely!] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "richTemplate",
+    "templateId": "zoko_shopify__order_refund_002",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Hey {{2}}, \nYour order {{3}} with {{4}} has been cancelled and refunded as requested. We hope to see you again soon – keep it real.\nFooter: Powered by Zoko\n",
+    "templateVariableCount": 4,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "order_status_czech",
+    "templateLanguage": "cs",
+    "templateDesc": "Body: Stav objednávky\nDobrý den! Jsme tu, abychom vám s vaší objednávkou pomohli.\n\nVyberte si prosím jednu z následujících možností:\nButtons: [Stav objednávky] {{1}}, [Odkaz ke stažení] {{2}}, [Zrušit/upravit objed] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "budget_view_",
+    "templateLanguage": "en",
+    "templateDesc": "Body: To view your current budget, please share the email you used during checkout or log in to your customer portal: {{1}} \n\nWould you like help updating your preferences or materials?\nButtons: [Yes] {{2}}, [No] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "template",
+    "templateId": "_cooperation",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Hello! Thanks for your interest in working with us.\nLet us know what kind of cooperation you're looking for:\nFooter: Please tell us briefly about yourself, website, email, phone\n",
+    "templateVariableCount": 0,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "buttonTemplate",
+    "templateId": "zoko_cod_2_prepay_001",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Get the same order for an extra {{2}} OFF!\n---\nOffer valid for only {{3}}.\nFooter: Powered by Zoko\nButtons: [Pay Online] {{4}}\n",
+    "templateVariableCount": 4,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "order_status_german",
+    "templateLanguage": "de",
+    "templateDesc": "Body: Bestellstatus\nHallo! Wir helfen Ihnen gerne bei Ihrer Bestellung.\n\nBitte wählen Sie eine der folgenden Optionen:\nButtons: [Bestellstatus] {{1}}, [Download-Link] {{2}}, [Bestellung storniere] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "richTemplate",
+    "templateId": "zoko_shopify__order_confirmation_002",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Hi {{2}},\nThank you for shopping with us at {{3}}. Your order {{4}} is confirmed and will be shipped shortly.\n----------\nPlease check the order status at {{5}}\nFooter: Powered by Zoko\n",
+    "templateVariableCount": 5,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "buttonTemplate",
+    "templateId": "zoko_reorder_reminder_01",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: We were told that you ordered {{2}} some time back. Hope you are enjoying it, but we'd hate for you to run out.\n-----\n*Order Again* easily and stay awesome!!\nFooter: Powered by Zoko\nButtons: [Order Again] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "order_confirmation_real_czech",
+    "templateLanguage": "cs",
+    "templateDesc": "Body: Děkujeme za vaši objednávku! Váš projekt LEVA je připraven.\n\nNyní máte přístup k:\nFooter: Máte otázky? Odpovězte kdykoli.\nButtons: [Materiál a dodání] {{1}}\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "richTemplate",
+    "templateId": "zoko_shopify__shipping_confirmation_002",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Hi {{2}},\nYour order {{3}} has been shipped.\nTrack the progress at {{4}}\nFooter: Powered by Zoko\n",
+    "templateVariableCount": 4,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "buttonTemplate",
+    "templateId": "zoko_shopify__order_delivery_002",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: Hi {{2}},\nThank you for shopping with us at {{3}}. Your order {{4}} has been delivered. \n\nIf there are any issues or questions regarding the delivery, please feel to contact us\nFooter: Powered by Zoko\nButtons: [Thank You!] {{5}}, [I have a question] {{6}}\n",
+    "templateVariableCount": 6,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "template",
+    "templateId": "contact_support_german",
+    "templateLanguage": "de",
+    "templateDesc": " Gerne! Ein Mitglied unseres Teams wird sich in Kürze bei Ihnen melden.\n\nSie erreichen uns auch per E-Mail unter {{1}}.\n\nMöchten Sie uns währenddessen eine Nachricht hinterlassen?\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "template",
+    "templateId": "contact_support_czech",
+    "templateLanguage": "cs",
+    "templateDesc": " Jistě! Jeden z členů našeho týmu vám brzy odpoví.\n\nMůžete nás také kontaktovat e-mailem na adrese {{1}}.\n\nChcete nám zanechat zprávu, zatímco čekáte?\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "template",
+    "templateId": "zoko_cod_2_prepay_invalid",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Order {{1}} Invalid\nDiscount can be used only for Online Payment.\nFooter: Powered by Zoko\n",
+    "templateVariableCount": 1,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "richTemplate",
+    "templateId": "zoko_shopify__shipping_update_002",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}} \nBody: *Delivery Update* \n\nThere is a shipping update for your order {{2}} with us.\n----------\nPlease track the update at {{3}}\nFooter: Powered by Zoko\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": false,
+    "templateType": "buttonTemplate",
+    "templateId": "order_status",
+    "templateLanguage": "en",
+    "templateDesc": "Body: Order Status\nHello! We're here to help you with your order.\n\nPlease choose one of the following:\nFooter: If you already have your order number, please include it in\nButtons: [Order Status] {{1}}, [Download link] {{2}}, [Cancel/modify Order] {{3}}\n",
+    "templateVariableCount": 3,
+    "active": true
+  },
+  {
+    "channel": "whatsapp",
+    "isRichTemplate": true,
+    "templateType": "buttonTemplate",
+    "templateId": "product_with_two_buttons",
+    "templateLanguage": "en",
+    "templateDesc": "Header: Image {{1}}\nBody: {{2}}\nButtons: [Buy Now] {{3}}, [View Details] {{4}}",
+    "templateVariableCount": 4,
+    "active": true
+  }
+]
