@@ -19,3 +19,4 @@ orjson
 fuzzywuzzy
 rapidfuzz
 python-Levenshtein
+mangum
