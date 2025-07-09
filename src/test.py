@@ -1,132 +1,67 @@
-import sys
-import os
-import asyncio
+from src.tools import ProductDatabase
+import requests
+import re
 import json
-from zoko_client import zoko_client
-from src.openai_agent import (
-    chat_with_agent_enhanced,
-    normalize_interactive_list,
-    fully_parse_json,
-    normalize_button_template
-)
 
-# ✅ Format products into valid Zoko interactive_list rows
-def format_products_for_zoko(products):
-    formatted = []
-    for i, p in enumerate(products):
-        if p.get("title") and p.get("id"):
-            formatted.append({
-                "id": p["id"],
-                "payload": p["id"],  # Zoko requires this field
-                "title": p["title"],
-                "description": p.get("description", "")
-            })
-    return formatted
+# Replace with your actual values
+ZOKO_API_KEY = "021d048e-5835-4b25-a268-4e3397747220"
+ZOKO_ENDPOINT = "https://chat.zoko.io/v2/message"
 
-# ✅ Dummy products for testing
-DUMMY_PRODUCTS = [
-    {"id": "view_product_001", "title": "Modern Villa", "description": "4 bed, pool, garden"},
-    {"id": "view_product_002", "title": "Eco Tiny House", "description": "2 bed, solar, compact"},
-    {"id": "view_product_003", "title": "Family Home XL", "description": "5 bed, garage, garden"},
-    {"id": "view_product_004", "title": "Urban Loft", "description": "3 bed, city view, smart home"},
-    {"id": "view_product_005", "title": "Budget Starter", "description": "2 bed, affordable, cozy"},
-]
+# Recipient's number (without +)
+recipient_number = "923335155379"
 
-# ✅ Dummy agent-style interactive list structure
-DUMMY_AGENT_INTERACTIVE_LIST = {
-    "whatsapp_type": "interactive_list",
-    "header": "🏠 LEVA House Projects",
-    "body": "Choose a project to view details:",
-    "items": format_products_for_zoko(DUMMY_PRODUCTS[:3])
+# Fetch products from the database
+products = ProductDatabase.search_products(query="", limit=10)
+
+def clean_text(text, maxlen):
+    text = re.sub(r'<[^>]+>', '', str(text))
+    text = re.sub(r'\s+', ' ', text)
+    t = text.strip()
+    if len(t) > maxlen:
+        return t[:maxlen-3] + '...'
+    return t
+
+# Format items for interactive list
+items = []
+for p in products:
+    items.append({
+        "id": str(p.get("id", "")),
+        "payload": str(p.get("id", "")),
+        "title": clean_text(p.get("title", ""), 24),
+        "description": clean_text(p.get("description", ""), 50)
+    })
+
+# Load a real product from exported_products.json
+with open("exported_products.json", "r") as f:
+    exported_products = json.load(f)
+product = exported_products[0]
+
+payload = {
+    "channel": "whatsapp",
+    "recipient": recipient_number,
+    "type": "buttonTemplate",
+    "templateId": "zoko_upsell_product_01",
+    "templateArgs": [
+        product.get("images", [{}])[0].get("src", "https://via.placeholder.com/400x300.jpg"),
+        product.get("title", "Product"),
+        f"Order {product.get('title', 'Product')}",
+        f"https://www.theleva.com/products/{product.get('id', '')}"
+    ]
 }
 
-def test_send_interactive_list(chat_id):
-    print(f"\n🔹 Sending basic interactive list to {chat_id}...")
-    header = "🏠 LEVA House Projects"
-    body = "Choose a project to view details:"
-    items = format_products_for_zoko(DUMMY_PRODUCTS)
-    print("Formatted items for Zoko:", json.dumps(items, indent=2))
-    if not items:
-        print("❌ No valid items to send.")
-        return
-    success = zoko_client.send_interactive_list(chat_id, header, body, items)
-    print("✅ Success!" if success else "❌ Failed!")
+# Set headers
+headers = {
+    "Content-Type": "application/json",
+    "apikey": ZOKO_API_KEY
+}
 
-def test_send_agent_style_interactive_list(chat_id):
-    print(f"\n🔹 Sending agent-style interactive list to {chat_id}...")
-    data = DUMMY_AGENT_INTERACTIVE_LIST
-    print("Formatted agent-style items:", json.dumps(data["items"], indent=2))
-    if not data["items"]:
-        print("❌ No valid items to send.")
-        return
-    success = zoko_client.send_interactive_list(chat_id, data["header"], data["body"], data["items"])
-    print("✅ Success!" if success else "❌ Failed!")
+# Send request
+response = requests.post(ZOKO_ENDPOINT, json=payload, headers=headers, timeout=30)
 
-def test_product_template(chat_id):
-    print("\n🔹 Testing agent-generated buttonTemplate...")
-    response = asyncio.run(chat_with_agent_enhanced("I need one bedroom house", chat_id=chat_id))
-    if isinstance(response, dict) and "search_one_product_with_handoff_response" in response:
-        results = response["search_one_product_with_handoff_response"].get("results", [])
-        if results and isinstance(results[0], dict):
-            response = results[0]
-    print("Single product response:", response)
-
-    print("\n🔹 Testing agent-generated interactive_list...")
-    response = asyncio.run(chat_with_agent_enhanced("I need all two bedroom houses", chat_id=chat_id))
-    if isinstance(response, dict) and "search_products_with_handoff_response" in response:
-        results = response["search_products_with_handoff_response"].get("results", [])
-        if results and isinstance(results[0], dict):
-            response = normalize_interactive_list(results[0])
-        elif results and isinstance(results[0], str):
-            try:
-                import orjson
-                parsed = orjson.loads(results[0])
-                response = normalize_interactive_list(parsed)
-            except Exception:
-                pass
-    print("Multiple product response:", response)
-
-def test_edge_cases(chat_id):
-    print("\n🔹 Testing edge cases and parsing...")
-
-    malformed = '{"whatsapp_type": "buttonTemplate", "template_id": "zoko_upsell_product_01", "template_args": ["img", "title"]'
-    try:
-        parsed = fully_parse_json(malformed)
-        print("✅ Malformed JSON parsed:", parsed)
-    except Exception as e:
-        print("❌ Malformed JSON error:", e)
-
-    codeblock = '```json\n{"whatsapp_type": "interactive_list", "header": "H", "body": "B", "items": []}\n```'
-    try:
-        parsed = fully_parse_json(codeblock)
-        print("✅ Code block JSON parsed:", parsed)
-    except Exception as e:
-        print("❌ Code block JSON error:", e)
-
-    tool_plan = '{"tool_code": "search_products_with_handoff", "tool_args": {"query": "villa"}}'
-    try:
-        parsed = fully_parse_json(tool_plan)
-        print("✅ Tool call plan parsed:", parsed)
-    except Exception as e:
-        print("❌ Tool call parse error:", e)
-
-    agent_output = '{"whatsapp_type": "interactive_list", "header": "H", "body": "B", "items": [{"title": "T", "description": "D", "payload": "P"}]}'
-    parsed = fully_parse_json(agent_output)
-    normalized = normalize_interactive_list(parsed)
-    print("✅ Normalized output:", normalized)
-    assert all(k in normalized for k in ("header", "body", "items")), "❌ Interactive list missing keys"
-    print("✅ All edge case tests passed!")
-
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python test_zoko.py <whatsapp_chat_id>")
-        sys.exit(1)
-
-    chat_id = sys.argv[1]
-    test_send_interactive_list(chat_id)
-    test_send_agent_style_interactive_list(chat_id)
-    test_product_template(chat_id)
-    test_edge_cases(chat_id)
-
-if __name__ == "__main__":
-    main()
+# Debug output
+print("Status Code:", response.status_code)
+try:
+    print("Response:", response.json())
+except Exception as e:
+    print("Non-JSON response:", response.text)
+    print("Error decoding JSON:", e)

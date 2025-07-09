@@ -26,22 +26,33 @@ def search_products_with_handoff_func(query: str) -> str:
                         product.get("url", "https://www.theleva.com/")
                     ]
                 })
-            items = [
+            sections = [
                 {
-                    "title": p["title"][:24],
-                    "description": p["description"][:60],
-                    "payload": f"view_product_{p['id']}"
-                } for p in products[:10]
+                    "title": "Properties",
+                    "items": [
+                        {
+                            "id": p["id"],
+                            "payload": p["id"],
+                            "title": p["title"][:24],
+                            "description": p["description"][:60]
+                        } for p in products[:10]
+                    ]
+                }
             ]
             return json.dumps({
                 "whatsapp_type": "interactive_list",
-                "header": "🏠 LEVA Houses",
-                "body": f"Found {len(items)} houses:",
-                "items": items
+                "interactiveList": {
+                    "body": {"text": f"Found {len(products)} products matching your query."},
+                    "list": {
+                        "title": "LEVA Houses",
+                        "header": {"text": "LEVA Houses"},
+                        "sections": sections
+                    }
+                }
             })
         return json.dumps({
             "whatsapp_type": "text",
-            "message": "Sorry, I couldn’t find any products matching your query."
+            "message": "Sorry, I couldn't find any products matching your query."
         })
     except Exception as e:
         logger.error(f"❌ Product search failed: {str(e)}")
@@ -76,7 +87,7 @@ def search_one_product_with_handoff_func(query: str) -> str:
             })
         return json.dumps({
             "whatsapp_type": "text",
-            "message": "Sorry, I couldn’t find a product matching your query."
+            "message": "Sorry, I couldn't find a product matching your query."
         })
     except Exception as e:
         logger.error(f"❌ Single product search failed: {str(e)}")
@@ -135,18 +146,29 @@ def browse_all_properties_with_handoff_func(limit: int = 20) -> str:
         result_data = json.loads(result) if isinstance(result, str) else result
         if result_data.get("products"):
             products = result_data["products"]
-            items = [
+            sections = [
                 {
-                    "title": p["title"][:24],
-                    "description": p["description"][:60],
-                    "payload": f"view_product_{p['id']}"
-                } for p in products[:limit]
+                    "title": "Properties",
+                    "items": [
+                        {
+                            "id": p["id"],
+                            "payload": p["id"],
+                            "title": p["title"][:24],
+                            "description": p["description"][:60]
+                        } for p in products[:limit]
+                    ]
+                }
             ]
             return json.dumps({
                 "whatsapp_type": "interactive_list",
-                "header": "🏠 LEVA Houses",
-                "body": f"Found {len(items)} houses:",
-                "items": items
+                "interactiveList": {
+                    "body": {"text": f"Found {len(products)} products available."},
+                    "list": {
+                        "title": "LEVA Houses",
+                        "header": {"text": "LEVA Houses"},
+                        "sections": sections
+                    }
+                }
             })
         return json.dumps({
             "whatsapp_type": "text",

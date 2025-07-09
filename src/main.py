@@ -9,6 +9,7 @@ from src.zoko_client import zoko_client
 from collections import OrderedDict
 from time import time
 from typing import Dict
+import re
 
 logger = get_logger("app")
 app = FastAPI(title="LEVA ASSISTANT")
@@ -59,8 +60,14 @@ async def zoko_webhook(request: Request, background_tasks: BackgroundTasks):
             return {"status": "skipped", "message": f"Ignored event {event}"}
         
         chat_id = body.get("platformSenderId")
-        user_text = body.get("text")
         message_id = body.get("id")
+        # Extract payload if present (for interactive list selection)
+        payload_id = None
+        # Zoko interactive list reply structure
+        if "interactive" in body and "list_reply" in body["interactive"]:
+            payload_id = body["interactive"]["list_reply"].get("id") or body["interactive"]["list_reply"].get("payload")
+        # Fallback to text if no payload
+        user_text = payload_id or body.get("text")
         if not chat_id or not user_text or not message_id:
             logger.error(f"Invalid webhook payload: missing chat_id, text, or id - {body}")
             return {"status": "error", "message": "Missing chat_id, text, or id"}
@@ -90,6 +97,10 @@ async def process_zoko_message(payload: Dict):
         user_text = payload["text"]
         message_id = payload["message_id"]
         logger.info(f"Processing user message: {user_text} from {chat_id} (ID: {message_id})")
+
+        # Log the payload for debugging
+        logger.info(f"Received payload for selection: {user_text}")
+
         response = await chat_with_agent_enhanced(user_text, chat_id=chat_id)
         # Ensure response is always a dict
         if isinstance(response, str):
@@ -112,11 +123,60 @@ async def process_zoko_message(payload: Dict):
                 logger.error(f"Button template response missing keys: {response}")
                 zoko_client.send_text(chat_id, response.get("message", "Sorry, something went wrong."))
         elif response.get("whatsapp_type") == "interactive_list":
-            if "header" in response and "body" in response and "items" in response:
-                zoko_client.send_interactive_list(chat_id, response["header"], response["body"], response["items"])
+            # Fallback: If response is flat, wrap into correct structure
+            if "interactiveList" not in response and "items" in response:
+                logger.warning("Fixing flat interactive list to expected structure")
+                response["interactiveList"] = {
+                    "list": {
+                        "title": response.get("header", "Menu"),
+                        "sections": [{
+                            "title": "Options",
+                            "items": response["items"]
+                        }]
+                    },
+                    "body": {
+                        "text": response.get("body", "Choose one:")
+                    }
+                }
+            interactive = response.get("interactiveList")
+            if interactive and "list" in interactive:
+                list_obj = interactive["list"]
+                sections = list_obj.get("sections", [])
+                # Flatten and sanitize items from all sections
+                def clean_text(text, maxlen):
+                    text = re.sub(r'<[^>]+>', '', str(text))
+                    text = re.sub(r'\s+', ' ', text)
+                    t = text.strip()
+                    if not t:
+                        return "No description available"
+                    if len(t) > maxlen:
+                        return t[:maxlen-3] + '...'
+                    return t
+                items = []
+                for section in sections:
+                    for item in section.get("items", []):
+                        desc = clean_text(item.get("description", ""), 50)
+                        items.append({
+                            "id": str(item.get("id", "")),
+                            "payload": str(item.get("payload", "")),
+                            "title": clean_text(item.get("title", ""), 24),
+                            "description": desc
+                        })
+                # Ensure all items have a non-empty description
+                for item in items:
+                    if not item.get("description"):
+                        item["description"] = "No description available"
+                body = interactive["body"].get("text", "Choose an option:") if "body" in interactive else "Choose an option:"
+                zoko_client.send_interactive_list(chat_id, list_obj.get("title", "LEVA Houses"), body, items)
             else:
-                logger.error(f"Interactive list response missing keys: {response}")
+                logger.error(f"Interactive list response missing 'interactiveList' or 'list': {response}")
                 zoko_client.send_text(chat_id, response.get("message", "Sorry, something went wrong."))
     except Exception as e:
         logger.error(f"Error processing Zoko message (ID: {payload.get('message_id')}): {e}", exc_info=True)
         zoko_client.send_text(chat_id, "Sorry, something went wrong.")
+
+@app.get("/")
+def hello():
+    return {
+        "app is good"
+    }

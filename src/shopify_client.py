@@ -88,3 +88,6 @@ def save_products_to_file(filename: str = "products.json") -> bool:
     except Exception as e:
         logger.error("Failed to save products", exc_info=True)
         return False
+
+if __name__ == "__main__":
+    save_products_to_file()

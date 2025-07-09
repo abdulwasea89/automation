@@ -92,7 +92,7 @@ class ZokoClient:
             "https://chat.api.zoko.io/v2/account/templates",
             "https://chat.zoko.io/v2/account/templates",
             "https://chat.zoko.io/v2/message",
-            "https://chat.api.zoko.io/v2/message"
+            "https://chat.api.zoko.io/v2/message"   
         ]
         try:
             recipient = self._validate_phone(chat_id)
