@@ -1,0 +1,18 @@
+runtime: python311
+entrypoint: gunicorn -c src/gunicorn_conf.py src.main:app
+
+instance_class: F1
+
+automatic_scaling:
+  target_cpu_utilization: 0.6
+  min_instances: 0
+  max_instances: 10
+
+env_variables:
+  PROJECT_ID: "ai-chatbot-463111"
+  ENVIRONMENT: "production"
+
+handlers:
+  - url: /.*
+    script: auto
+    secure: always 

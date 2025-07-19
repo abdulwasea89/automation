@@ -8,6 +8,9 @@ from src.deps import db
 from src.logger import get_logger
 from fuzzywuzzy import fuzz
 from rapidfuzz import process as rapidfuzz_process
+import asyncio
+from src.product_loader import product_loader
+from src.tools import is_general_product_info_query
 
 logger = get_logger("products")
 
@@ -173,166 +176,42 @@ def add_products_to_firestore(products: List[Dict[str, Any]], batch_size: int = 
 
     logger.info(f"Import completed: {successful} successful, {failed} failed out of {total_products} total")
 
-def get_product_by_id(product_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Retrieve a product from Firestore by ID, title, name, layout_id, sku, or partial/case-insensitive match. Cleans input and logs all attempts.
-    Args:
-        product_id (str): The product ID, title, name, or other identifier to retrieve
-    Returns:
-        Optional[Dict[str, Any]]: Product data if found, None otherwise
-    """
-    if db is None:
-        logger.error("Firestore client not available")
-        return None
-    try:
-        # Clean and normalize input
-        import re
-        def normalize(s):
-            return re.sub(r'\s+', ' ', str(s or '').lower().strip())
-        cleaned = product_id
-        cleaned = re.sub(r'<.*?>', '', cleaned)  # Remove HTML tags
-        cleaned = cleaned.replace('🏡', '').replace('\n', ' ').replace('\r', ' ')
-        cleaned = cleaned.split('<br/>')[0]
-        cleaned = cleaned.strip()
-        cleaned_norm = normalize(cleaned)
-        logger.info(f"Looking up product with cleaned input: '{cleaned}' (norm: '{cleaned_norm}')")
-        # 1. Try as document ID (normalized string)
-        doc = db.collection(PRODUCTS_COLLECTION).document(str(cleaned)).get()
-        if doc.exists:
-            prod = doc.to_dict()
-            if normalize(prod.get("id", "")) == cleaned_norm:
-                logger.info(f"Found product by document ID: {cleaned}")
-                return prod
-        # 2. Try as 'id', 'title', 'name' (normalized)
-        docs = db.collection(PRODUCTS_COLLECTION).limit(50).stream()
-        for doc in docs:
-            prod = doc.to_dict()
-            id_str = normalize(prod.get("id", ""))
-            title_str = normalize(prod.get("title", ""))
-            name_str = normalize(prod.get("name", ""))
-            if cleaned_norm == id_str or cleaned_norm == title_str or cleaned_norm == name_str:
-                logger.info(f"Found product by normalized id/title/name: {prod.get('title', '')}")
-                return prod
-        # 3. Try as 'id' field (int)
-        try:
-            int_id = int(cleaned)
-            query = db.collection(PRODUCTS_COLLECTION).where("id", "==", int_id)
-            for doc in query.stream():
-                logger.info(f"Found product by 'id' (int): {int_id}")
-                return doc.to_dict()
-        except Exception as e:
-            logger.debug(f"Could not convert product_id to int: {e}")
+def simple_word_forms(word):
+    forms = [word]
+    if not word.endswith('s'):
+        forms.append(word + 's')
+    if word.endswith('s'):
+        forms.append(word[:-1])
+    if not word.endswith('ing'):
+        forms.append(word + 'ing')
+    if word.endswith('ing'):
+        forms.append(word[:-3])
+    if not word.endswith('ed'):
+        forms.append(word + 'ed')
+    if word.endswith('ed'):
+        forms.append(word[:-2])
+    return list(dict.fromkeys([f for f in forms if f]))
 
-        # 4. Try by 'title' (case-insensitive)
-        query = db.collection(PRODUCTS_COLLECTION).where("title", "==", cleaned)
-        for doc in query.stream():
-            logger.info(f"Found product by 'title': {cleaned}")
-            return doc.to_dict()
-        query = db.collection(PRODUCTS_COLLECTION).where("title", "==", cleaned_norm) # Use normalized title
-        for doc in query.stream():
-            logger.info(f"Found product by 'title' (lower): {cleaned_norm}")
-            return doc.to_dict()
-
-        # 5. Try by 'name' (case-insensitive)
-        query = db.collection(PRODUCTS_COLLECTION).where("name", "==", cleaned)
-        for doc in query.stream():
-            logger.info(f"Found product by 'name': {cleaned}")
-            return doc.to_dict()
-        query = db.collection(PRODUCTS_COLLECTION).where("name", "==", cleaned_norm) # Use normalized name
-        for doc in query.stream():
-            logger.info(f"Found product by 'name' (lower): {cleaned_norm}")
-            return doc.to_dict()
-
-        # 6. Try by 'layout_id' (if present)
-        query = db.collection(PRODUCTS_COLLECTION).where("layout_id", "==", cleaned)
-        for doc in query.stream():
-            logger.info(f"Found product by 'layout_id': {cleaned}")
-            return doc.to_dict()
-
-        # 7. Try by 'sku' (if present)
-        query = db.collection(PRODUCTS_COLLECTION).where("sku", "==", cleaned)
-        for doc in query.stream():
-            logger.info(f"Found product by 'sku': {cleaned}")
-            return doc.to_dict()
-
-        # 8. Partial/case-insensitive match on 'title' and 'name' (range query)
-        # Firestore doesn't support case-insensitive search, so fetch a batch and check in Python
-        docs = db.collection(PRODUCTS_COLLECTION).where("title", ">=", cleaned).where("title", "<=", cleaned + "\uf8ff").limit(10).stream()
-        for doc in docs:
-            prod = doc.to_dict()
-            title = str(prod.get("title", "") or "")
-            name = str(prod.get("name", "") or "")
-            if normalize(title) == cleaned_norm or cleaned_norm in normalize(title) or normalize(name) == cleaned_norm or cleaned_norm in normalize(name):
-                logger.info(f"Found product by partial/case-insensitive title or name: {title} / {name}")
-                return prod
-        docs = db.collection(PRODUCTS_COLLECTION).where("name", ">=", cleaned).where("name", "<=", cleaned + "\uf8ff").limit(10).stream()
-        for doc in docs:
-            prod = doc.to_dict()
-            name = str(prod.get("name", "") or "")
-            if normalize(name) == cleaned_norm or cleaned_norm in normalize(name):
-                logger.info(f"Found product by partial/case-insensitive name: {name}")
-                return prod
-
-        # 9. Fallback: scan a batch and fuzzy match on 'title' and 'name'
-        docs = db.collection(PRODUCTS_COLLECTION).limit(20).stream()
-        from rapidfuzz import process as rapidfuzz_process
-        titles = [(str(doc.to_dict().get("title", "") or ""), doc.to_dict()) for doc in docs]
-        names = [(str(doc.to_dict().get("name", "") or ""), doc.to_dict()) for doc in docs]
-        all_labels = titles + names
-        label_texts = [t[0] for t in all_labels]
-        if label_texts:
-            result = rapidfuzz_process.extractOne(cleaned, label_texts, score_cutoff=80)
-            if result:
-                idx = label_texts.index(result[0])
-                logger.info(f"Found product by fuzzy title/name: {result[0]}")
-                return all_labels[idx][1]
-
-        logger.info(f"Product with ID, title, or name '{product_id}' not found after all attempts.")
-        return None
-    except Exception as e:
-        logger.error(f"Failed to retrieve product '{product_id}': {str(e)}")
+async def get_product_by_id(product_id: str, lang: str = 'en') -> Optional[Dict[str, Any]]:
+    cleaned = re.sub(r'<.*?>', '', product_id or '')
+    cleaned = cleaned.replace('🏡', '').replace('\n', ' ').replace('\r', ' ')
+    cleaned = cleaned.split('<br/>')[0].strip().lower()
+    for form in simple_word_forms(cleaned):
+        products = product_loader.search(form, lang=lang, max_results=1)
+        if products:
+            return products[0]
         return None
 
-def search_products(query: str, limit: int = 10) -> List[Dict[str, Any]]:
-    """
-    Search products by title or vendor.
-    
-    Args:
-        query (str): Search query
-        limit (int): Maximum number of results
-        
-    Returns:
-        List[Dict[str, Any]]: List of matching products
-    """
-    if db is None:
-        logger.error("Firestore client not available")
+async def search_products(query: str, limit: int = 10, lang: str = 'en') -> List[Dict[str, Any]]:
+    query_clean = re.sub(r'<.*?>', '', query or '')
+    query_clean = query_clean.replace('🏡', '').replace('\n', ' ').replace('\r', ' ')
+    query_clean = query_clean.split('<br/>')[0].strip().lower()
+    if not query_clean:
         return []
-        
-    try:
-        # Search in title field
-        title_query = db.collection(PRODUCTS_COLLECTION).where("title", ">=", query).where("title", "<=", query + "\uf8ff").limit(limit)
-        title_results = [doc.to_dict() for doc in title_query.stream()]
-        
-        # Search in vendor field
-        vendor_query = db.collection(PRODUCTS_COLLECTION).where("vendor", ">=", query).where("vendor", "<=", query + "\uf8ff").limit(limit)
-        vendor_results = [doc.to_dict() for doc in vendor_query.stream()]
-        
-        # Combine and deduplicate results
-        all_results = title_results + vendor_results
-        seen_ids = set()
-        unique_results = []
-        
-        for product in all_results:
-            product_id = product.get("id")
-            if product_id and product_id not in seen_ids:
-                seen_ids.add(product_id)
-                unique_results.append(product)
-                
-        logger.info(f"Found {len(unique_results)} products matching query: {query}")
-        return unique_results[:limit]
-        
-    except Exception as e:
-        logger.error(f"Failed to search products: {str(e)}")
+    for form in simple_word_forms(query_clean):
+        products = product_loader.search(form, lang=lang, max_results=min(limit, 3))
+        if products:
+            return products
         return []
 
 def delete_product(product_id: str) -> bool:
@@ -531,7 +410,7 @@ def build_product_button_template(product: dict) -> dict:
     handle = str(product.get("handle", "") or "")
     return {
         "whatsapp_type": "buttonTemplate",
-        "template_id": "upsel_01",
+        "template_id": "zoko_upsell_product_01",
         "template_args": [
             image,
             title,
@@ -544,6 +423,24 @@ def handle_user_message(text: str) -> dict:
     """
     Handle user message and return products for recognized categories or product button template if matched by ID/title.
     """
+    # General product info check
+    if is_general_product_info_query(text):
+        return {
+            "whatsapp_type": "text",
+            "message": (
+                "We offer a wide range of modular architectural products, including:\n\n"
+                "* Tiny Houses & Family Homes (with versatile L- and U-shaped layouts)\n"
+                "* Swimming Pools & Natural Ponds\n"
+                "* Outdoor Spas & Wellness Areas\n"
+                "* Summer Houses & Garden Rooms\n"
+                "* Commercial Buildings (like coffee shops and more)\n"
+                "* Construction Plans in PDF, DWG, IFC, and GLB formats\n"
+                "* Free Downloads (budget plans and sample units)\n"
+                "* MEP & BIM-ready files\n"
+                "* Augmented Reality previews & cost estimators\n\n"
+                "If you’d like to know more about any of these products or need additional details, just let me know!"
+            )
+        }
     # Sanitize input: remove HTML tags and keep only the first line or before <br/>
     clean_text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
     clean_text = clean_text.split('\n')[0]   # Only first line if multiline
@@ -551,7 +448,7 @@ def handle_user_message(text: str) -> dict:
     clean_text = clean_text.strip()
 
     # Try to match by product ID or title first
-    product = get_product_by_id(clean_text)
+    product = asyncio.run(get_product_by_id(clean_text))
     if product:
         return build_product_button_template(product)
     # Otherwise, try category search

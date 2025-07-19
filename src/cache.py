@@ -1,6 +1,9 @@
 import hashlib
 import os
 import time
+from src.logger import get_logger, log_cache, log_error
+
+logger = get_logger("cache")
 
 # Cache configuration from environment variables
 # Convert to int, default 1 hour
@@ -23,7 +26,9 @@ def generate_cache_key(text: str) -> str:
     normalized = text.lower().strip()
     normalized = normalized.replace("hello", "hi").replace("hey", "hi")
     normalized = normalized.replace("?", "").replace("!", "")
-    return hashlib.md5(normalized.encode()).hexdigest()
+    cache_key = hashlib.md5(normalized.encode()).hexdigest()
+    log_cache("GENERATE_KEY", cache_key, original_text=text[:50])
+    return cache_key
 
 
 def get_cache_stats() -> dict:
@@ -50,11 +55,14 @@ def get_cache_stats() -> dict:
     for key in expired_keys:
         del response_cache[key]
 
-    return {
+    stats = {
         "cache_size": len(response_cache),
         "cache_keys": list(response_cache.keys())[:10],  # Show first 10 keys
         "expired_cleaned": len(expired_keys)
     }
+    
+    log_cache("STATS", "cache_statistics", cache_size=stats["cache_size"], expired_cleaned=stats["expired_cleaned"])
+    return stats
 
 
 def cache_response(key: str, response: dict):
@@ -69,6 +77,7 @@ def cache_response(key: str, response: dict):
         "response": response,
         "timestamp": time.time()
     }
+    log_cache("STORE", key, response_type=response.get("whatsapp_type", "unknown"))
 
 
 def get_cached_response(key: str):
@@ -82,6 +91,7 @@ def get_cached_response(key: str):
         The cached response if present and valid, otherwise None.
     """
     if key not in response_cache:
+        log_cache("MISS", key, reason="key_not_found")
         return None
 
     cached_data = response_cache[key]
@@ -91,11 +101,14 @@ def get_cached_response(key: str):
     if not isinstance(timestamp, (int, float)):
         # If timestamp is invalid, remove the cache entry and return None
         del response_cache[key]
+        log_cache("MISS", key, reason="invalid_timestamp")
         return None
 
     # Check if cache entry has expired
     if time.time() - timestamp > CACHE_TTL:
         del response_cache[key]
+        log_cache("MISS", key, reason="expired")
         return None
 
+    log_cache("HIT", key, response_type=cached_data["response"].get("whatsapp_type", "unknown"))
     return cached_data["response"]

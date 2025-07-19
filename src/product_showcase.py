@@ -10,6 +10,7 @@ from src.zoko_client import ZokoClient
 from src.zoko_utils import zoko_utils
 from src.logger import get_logger
 import re
+from src.product_loader import product_loader
 
 logger = get_logger("product_showcase")
 
@@ -78,13 +79,31 @@ class ProductShowcase:
             # Format products for interactive list
             items = []
             for product in products[:10]:  # Zoko limit
+                # Build a concise, info-rich summary for WhatsApp/Zoko
                 title = product.get('name', 'Product')[:24]  # 24 char limit
-                description = f"{product.get('price', 'N/A')} - {product.get('description', '')[:50]}"
-                
+                type_ = product.get('type', '')
+                cat = product.get('category', '')
+                vendor = product.get('vendor', '')
+                price = product.get('price', 'N/A')
+                desc = product.get('description', '')
+                # Remove HTML tags from desc
+                import re
+                desc = re.sub('<[^<]+?>', '', desc)
+                # Compose a short summary (type/category, vendor, price, short desc)
+                summary_parts = []
+                if type_ or cat:
+                    summary_parts.append(f"{type_ or ''} {cat or ''}".strip())
+                if vendor:
+                    summary_parts.append(f"Brand: {vendor}")
+                if price and price != 'N/A':
+                    summary_parts.append(f"Price: {price}")
+                if desc:
+                    summary_parts.append(desc[:40])
+                summary = " | ".join([p for p in summary_parts if p])
                 items.append({
                     "title": title,
-                    "description": description,
-                    "payload": f"view_product_{product.get('id', 'unknown')}"
+                    "description": summary[:60],
+                    "payload": str(product.get('id', 'unknown'))
                 })
             
             return {
@@ -217,7 +236,7 @@ To purchase this product, please contact our support team."""
             "message": message
         }
     
-    def send_product_showcase(self, chat_id: str, product: Dict) -> bool:
+    async def send_product_showcase(self, chat_id: str, product: Dict) -> bool:
         """
         Send a product showcase message.
         
@@ -228,22 +247,20 @@ To purchase this product, please contact our support team."""
         try:
             # Create product card
             product_message = self.create_product_card(product)
-            
-            # Send the message
-            success = self.client.send_rich_message(chat_id, product_message)
-            
-            if success:
-                logger.info(f"Product showcase sent successfully for {product.get('name', 'Product')}")
+            # Send the message as a button template
+            template = product_message.get("template", {})
+            template_id = template.get("template_id")
+            template_args = template.get("template_args", [])
+            if template_id and template_args:
+                return await self.client.send_button_template(chat_id, template_id, template_args)
             else:
-                logger.error(f"Failed to send product showcase for {product.get('name', 'Product')}")
-            
-            return success
-            
+                # Fallback to text
+                return await self.client.send_text(chat_id, product_message.get("message", "Product info"))
         except Exception as e:
             logger.error(f"Error sending product showcase: {e}")
             return False
     
-    def send_product_list(self, chat_id: str, products: List[Dict]) -> bool:
+    async def send_product_list(self, chat_id: str, products: List[Dict]) -> bool:
         """
         Send a product list message. Only send interactive list if customer is existing.
         """
@@ -253,24 +270,26 @@ To purchase this product, please contact our support team."""
             if status.get('status') == 'existing_customer':
                 # Create product list (interactive)
                 list_message = self.create_product_list(products)
-                success = self.client.send_rich_message(chat_id, list_message)
-                if success:
-                    logger.info(f"Product list sent successfully with {len(products)} products (interactive)")
-                else:
-                    logger.error(f"Failed to send product list (interactive)")
-                return success
+                # Parse items for interactive list
+                items = json.loads(list_message["template"]["template_args"][2])
+                return await self.client.send_interactive_list(
+                    chat_id,
+                    list_message["template"]["template_args"][0],
+                    list_message["template"]["template_args"][1],
+                    items
+                )
             else:
                 # Fallback: send as a button template (first product)
                 logger.info("Customer is new; sending product card as button template instead of interactive list.")
                 if products:
-                    return self.send_product_showcase(chat_id, products[0])
+                    return await self.send_product_showcase(chat_id, products[0])
                 else:
                     return False
         except Exception as e:
             logger.error(f"Error sending product list: {e}")
             return False
     
-    def send_product_gallery(self, chat_id: str, products: List[Dict], title: str = "Product Gallery") -> bool:
+    async def send_product_gallery(self, chat_id: str, products: List[Dict], title: str = "Product Gallery") -> bool:
         """
         Send a product gallery (multiple messages). Only send interactive/gallery if customer is existing.
         """
@@ -280,7 +299,16 @@ To purchase this product, please contact our support team."""
                 gallery_messages = self.create_product_gallery(products, title)
                 success_count = 0
                 for message in gallery_messages:
-                    success = self.client.send_rich_message(chat_id, message)
+                    if message.get("whatsapp_type") == "buttonTemplate":
+                        template = message.get("template", {})
+                        template_id = template.get("template_id")
+                        template_args = template.get("template_args", [])
+                        if template_id and template_args:
+                            success = await self.client.send_button_template(chat_id, template_id, template_args)
+                        else:
+                            success = await self.client.send_text(chat_id, message.get("message", "Product info"))
+                    else:
+                        success = await self.client.send_text(chat_id, message.get("message", "Product info"))
                     if success:
                         success_count += 1
                     else:
@@ -290,14 +318,14 @@ To purchase this product, please contact our support team."""
             else:
                 logger.info("Customer is new; sending only the first product card as button template.")
                 if products:
-                    return self.send_product_showcase(chat_id, products[0])
+                    return await self.send_product_showcase(chat_id, products[0])
                 else:
                     return False
         except Exception as e:
             logger.error(f"Error sending product gallery: {e}")
             return False
     
-    def send_product_with_link(self, chat_id: str, product: Dict) -> bool:
+    async def send_product_with_link(self, chat_id: str, product: Dict) -> bool:
         """
         Send a product message with direct buy link.
         
@@ -308,22 +336,12 @@ To purchase this product, please contact our support team."""
         try:
             # Create product with link message
             link_message = self.create_product_with_link(product)
-            
-            # Send the message
-            success = self.client.send_rich_message(chat_id, link_message)
-            
-            if success:
-                logger.info(f"Product with link sent successfully for {product.get('name', 'Product')}")
-            else:
-                logger.error(f"Failed to send product with link")
-            
-            return success
-            
+            return await self.client.send_text(chat_id, link_message.get("message", "Product info"))
         except Exception as e:
             logger.error(f"Error sending product with link: {e}")
             return False
     
-    def send_custom_promo_card(self, chat_id: str, image_url: str, text: str, buttons: list) -> bool:
+    async def send_custom_promo_card(self, chat_id: str, image_url: str, text: str, buttons: list) -> bool:
         """
         Send a custom promo card with image, text, and up to 3 buttons.
         buttons: List of dicts, e.g. [{"title": "Schedule Demo", "payload": "schedule_demo"}, ...]
@@ -333,16 +351,9 @@ To purchase this product, please contact our support team."""
         template_args = [b["payload"] for b in buttons[:3]]
         while len(template_args) < 3:
             template_args.append("")
-        message = {
-            "whatsapp_type": "buttonTemplate",
-            "template": {
-                "template_id": template_id,
-                "template_args": template_args
-            }
-        }
-        return self.client.send_rich_message(chat_id, message)
+        return await self.client.send_button_template(chat_id, template_id, template_args)
 
-    def send_generic_promo_card(self, chat_id: str, image_url: str, name: str, business: str, buttons: list, template_id: str = "greet_with_options_01") -> bool:
+    async def send_generic_promo_card(self, chat_id: str, image_url: str, name: str, business: str, buttons: list, template_id: str = "greet_with_options_01") -> bool:
         """
         Send a generic promo card with a header image, name, business, and 3 button payloads.
         - chat_id: WhatsApp number
@@ -356,16 +367,9 @@ To purchase this product, please contact our support team."""
         template_args = [image_url, name, business] + buttons[:3]
         while len(template_args) < 6:
             template_args.append("")
-        message = {
-            "whatsapp_type": "buttonTemplate",
-            "template": {
-                "template_id": template_id,
-                "template_args": template_args
-            }
-        }
-        return self.client.send_rich_message(chat_id, message)
+        return await self.client.send_button_template(chat_id, template_id, template_args)
 
-    def send_affiliate_program_template(self, chat_id: str) -> bool:
+    async def send_affiliate_program_template(self, chat_id: str) -> bool:
         """
         Send the 'affiliate_program' button template to a WhatsApp user.
         Args:
@@ -379,9 +383,9 @@ To purchase this product, please contact our support team."""
             "Payout questions",
             "Products promotion"
         ]
-        return self.client.send_button_template(chat_id, template_id, template_args)
+        return await self.client.send_button_template(chat_id, template_id, template_args)
 
-    def send_product_with_two_buttons(self, chat_id: str, product: dict) -> bool:
+    async def send_product_with_two_buttons(self, chat_id: str, product: dict) -> bool:
         """
         Send a product template with two buttons (Buy Now, View Details) using the 'product_with_two_buttons' template.
         Args:
@@ -390,7 +394,7 @@ To purchase this product, please contact our support team."""
         Returns:
             bool: True if sent successfully, False otherwise
         """
-        return self.client.send_button_template(chat_id, "product_with_two_buttons", [
+        return await self.client.send_button_template(chat_id, "product_with_two_buttons", [
             product.get('image_url', 'https://via.placeholder.com/400x200?text=Product+Image'),
             product.get('name', 'Product'),
             "Buy Now",
@@ -401,21 +405,21 @@ To purchase this product, please contact our support team."""
 product_showcase = ProductShowcase()
 
 # Convenience functions
-def send_product_card(chat_id: str, product: Dict) -> bool:
+async def send_product_card(chat_id: str, product: Dict) -> bool:
     """Send a product card with image, name, and buy button."""
-    return product_showcase.send_product_showcase(chat_id, product)
+    return await product_showcase.send_product_showcase(chat_id, product)
 
-def send_product_list(chat_id: str, products: List[Dict]) -> bool:
+async def send_product_list(chat_id: str, products: List[Dict]) -> bool:
     """Send a list of products."""
-    return product_showcase.send_product_list(chat_id, products)
+    return await product_showcase.send_product_list(chat_id, products)
 
-def send_product_gallery(chat_id: str, products: List[Dict], title: str = "Product Gallery") -> bool:
+async def send_product_gallery(chat_id: str, products: List[Dict], title: str = "Product Gallery") -> bool:
     """Send a product gallery."""
-    return product_showcase.send_product_gallery(chat_id, products, title)
+    return await product_showcase.send_product_gallery(chat_id, products, title)
 
-def send_product_with_link(chat_id: str, product: Dict) -> bool:
+async def send_product_with_link(chat_id: str, product: Dict) -> bool:
     """Send a product with direct buy link."""
-    return product_showcase.send_product_with_link(chat_id, product)
+    return await product_showcase.send_product_with_link(chat_id, product)
 
 def create_product_card(product: Dict) -> Dict:
     """Create a product card message structure."""
@@ -425,11 +429,11 @@ def create_product_list(products: List[Dict]) -> Dict:
     """Create a product list message structure."""
     return product_showcase.create_product_list(products)
 
-def send_custom_promo_card(chat_id: str, image_url: str, text: str, buttons: list) -> bool:
+async def send_custom_promo_card(chat_id: str, image_url: str, text: str, buttons: list) -> bool:
     """Standalone function for sending a custom promo card (for demo/manual use)."""
-    return product_showcase.send_custom_promo_card(chat_id, image_url, text, buttons)
+    return await product_showcase.send_custom_promo_card(chat_id, image_url, text, buttons)
 
-def send_generic_promo_card(chat_id: str, image_url: str, name: str, business: str, buttons: list, template_id: str = "greet_with_options_01") -> bool:
+async def send_generic_promo_card(chat_id: str, image_url: str, name: str, business: str, buttons: list, template_id: str = "greet_with_options_01") -> bool:
     """
     Send a generic promo card with a header image, name, business, and 3 button payloads.
     - chat_id: WhatsApp number
@@ -443,16 +447,9 @@ def send_generic_promo_card(chat_id: str, image_url: str, name: str, business: s
     template_args = [image_url, name, business] + buttons[:3]
     while len(template_args) < 6:
         template_args.append("")
-    message = {
-        "whatsapp_type": "buttonTemplate",
-        "template": {
-            "template_id": template_id,
-            "template_args": template_args
-        }
-    }
-    return product_showcase.client.send_rich_message(chat_id, message)
+    return await product_showcase.client.send_button_template(chat_id, template_id, template_args)
 
-def send_affiliate_program_template(chat_id: str) -> bool:
+async def send_affiliate_program_template(chat_id: str) -> bool:
     """
     Send the 'affiliate_program' button template to a WhatsApp user.
     Args:
@@ -460,9 +457,9 @@ def send_affiliate_program_template(chat_id: str) -> bool:
     Returns:
         bool: True if sent successfully, False otherwise
     """
-    return product_showcase.send_affiliate_program_template(chat_id)
+    return await product_showcase.send_affiliate_program_template(chat_id)
 
-def send_product_with_two_buttons(chat_id: str, product: dict) -> bool:
+async def send_product_with_two_buttons(chat_id: str, product: dict) -> bool:
     """
     Send a product template with two buttons (Buy Now, View Details) using the 'product_with_two_buttons' template.
     Args:
@@ -471,4 +468,4 @@ def send_product_with_two_buttons(chat_id: str, product: dict) -> bool:
     Returns:
         bool: True if sent successfully, False otherwise
     """
-    return product_showcase.send_product_with_two_buttons(chat_id, product) 
+    return await product_showcase.send_product_with_two_buttons(chat_id, product) 

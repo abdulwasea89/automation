@@ -10,8 +10,8 @@ logger = get_logger("deps")
 # Try multiple credential paths
 credentials_paths = [
     os.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
-    "./service-account.json",
-    "/app/service-account.json",
+    # "./service-account.json",
+    # "/app/service-account.json",
     os.path.join(
         os.path.dirname(
             os.path.dirname(__file__)),
@@ -30,8 +30,8 @@ if credentials_path:
 else:
     logger.warning(
         "No service account file found in any of the expected locations")
-    logger.warning(
-        "Expected locations: GOOGLE_APPLICATION_CREDENTIALS env var, ./service-account.json, /app/service-account.json")
+    # logger.warning(
+    #     "Expected locations: GOOGLE_APPLICATION_CREDENTIALS env var, ./service-account.json, /app/service-account.json")
 
 try:
     if settings.PROJECT_ID:

@@ -7,9 +7,9 @@ from typing import Dict
 from agents import MaxTurnsExceeded, Runner
 from dotenv import load_dotenv
 
-from src.db_agent import db_agent
+from db_agent import db_agent
 from src.logger import get_logger
-from src.openai_agent import agent as main_agent
+from src.openai_agent import chat_with_agent_enhanced
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -40,35 +40,29 @@ async def run_main_agent(
         if chat_id:
             context_msg += f" [ChatID: {chat_id}]"
 
-        # Run the agent directly
-        result = await Runner.run(main_agent, context_msg)
+        # Run the agent directly using the enhanced function
+        result = await chat_with_agent_enhanced(context_msg, chat_id)
 
         # Parse the response
         try:
-            response_data = json.loads(result.final_output)
-            if isinstance(response_data, dict):
+            if isinstance(result, dict):
                 # Add agent metadata
-                response_data["agent_info"] = {
-                    "agent_name": result.agent.name if hasattr(
-                        result,
-                        'agent') else "main_agent",
-                    "handoff_occurred": result.agent.name == "database_agent" if hasattr(
-                        result,
-                        'agent') else False,
+                result["agent_info"] = {
+                    "agent_name": "main_agent",
+                    "handoff_occurred": False,
                     "timestamp": datetime.now().isoformat(),
                     "chat_id": chat_id}
                 logger.info("✅ Main agent completed successfully")
-                return response_data
-        except (json.JSONDecodeError, TypeError):
+                return result
+        except (TypeError, AttributeError):
             pass
 
         # Fallback to plain text
         return {
-            "message": result.final_output,
+            "message": str(result),
             "whatsapp_type": "text",
             "agent_info": {
-                "agent_name": result.agent.name if hasattr(
-                    result, 'agent') else "main_agent",
+                "agent_name": "main_agent",
                 "handoff_occurred": False,
                 "timestamp": datetime.now().isoformat(),
                 "chat_id": chat_id

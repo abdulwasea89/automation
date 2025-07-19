@@ -1,5 +1,12 @@
 bind = "0.0.0.0:8080"
-workers = 6
+workers = 2  # Reduced for Cloud Run memory constraints
 worker_class = "uvicorn.workers.UvicornWorker"
-timeout = 1000
-loglevel = "debug"
+timeout = 3000  # Increased for AI operations
+keepalive = 5
+max_requests = 1000
+max_requests_jitter = 100
+preload_app = True  # Preload app for faster startup
+worker_connections = 1000
+loglevel = "warning"  # Reduced logging in production
+accesslog = "-"
+errorlog = "-"

@@ -1,16 +1,12 @@
 # Use official Python slim image with optimized layers
 FROM python:3.11-slim as builder
 
-# Install build dependencies
+# Install build dependenciesP
 RUN apt-get update && apt-get install -y \
     gcc \
-    g++ \
     libpq-dev \
-    libffi-dev \
-    libssl-dev \
     git \
     curl \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
@@ -19,13 +15,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install dependencies
 COPY ./requirements.txt .
-RUN pip install --upgrade pip setuptools wheel && \
+RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # ===============================
 # Stage 2: Final Production Image
 # ===============================
-FROM python:3.11-slim
+FROM python:3.11-slim 
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
@@ -47,24 +43,21 @@ COPY --from=builder /opt/venv /opt/venv
 # App setup
 WORKDIR /app
 
-# Copy all application files first
-COPY . .
+COPY src/ ./src/
+COPY service-account.json /app/service-account.json
+COPY zoko_templates.json /app/zoko_templates.json
+COPY templates.json /app/templates.json
 
 # Create logs and set permissions
 RUN mkdir -p /app/logs && \
     chown -R appuser:appuser /app
 
 USER appuser
-
 # Expose port
 EXPOSE 8080
 
 # Set ENV VARS
 ENV GOOGLE_APPLICATION_CREDENTIALS="/app/service-account.json"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# Run the app with the correct entry point
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Run the app
+CMD ["gunicorn", "src.main:app", "--bind", "0.0.0.0:8080", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--timeout", "300", "--keep-alive", "5"]

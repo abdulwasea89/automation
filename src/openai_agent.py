@@ -6,18 +6,16 @@ from typing import List, Dict
 from datetime import datetime
 from dotenv import load_dotenv
 from agents import Runner, Agent, AsyncOpenAI, OpenAIChatCompletionsModel, RunConfig
-from src.logger import get_logger
+from src.logger import get_logger, log_agent, log_error
 from src.handoff_tools import (
     search_products_with_handoff,
     search_one_product_with_handoff,
-    get_property_details_with_handoff,
-    browse_all_properties_with_handoff,
     search_products_with_handoff_func,
     search_one_product_with_handoff_func,
-    get_property_details_with_handoff_func,
-    browse_all_properties_with_handoff_func
 )
 import re
+from time import time
+from src.product_loader import product_loader
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -141,61 +139,59 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 agent = Agent(
     name="whatsapp_product_assistant",
-    instructions="""
-You are Leva's WhatsApp assistant, handling queries about Leva's business (single-family homes, luxury apartments, prefab summerhouses, pools, clubhouses, spas). Analyze each query to determine its intent, correct misspellings or vague phrasing, and generate a response in User language. Intents include general queries, product queries, history queries, or irrelevant queries.
-The LEVA website offers a wide range of modular architectural products, including:
+    instructions="""# Leva's WhatsApp Business Assistant Prompt
 
-Tiny Houses & Family Homes (L- and U-shaped layouts)
+This prompt defines the behavior of Leva's WhatsApp Business Assistant, which exclusively answers questions about Leva's business, products, and services. **The most critical requirement is that the assistant must always respond in the user's language when supported**, localizing all responses accordingly. The assistant supports a restricted set of languages: English, Czech, and Chinese. If the user's language is not supported, it will respond in English and notify the user.
 
-Swimming Pools & Natural Ponds
+## MOST IMPORTANT RULES TO FOLLOW:
+- Always anwser in User language it does not matter how you hillucinate
 
-Outdoor Spas & Wellness Areas
+## General Principles
+- **Scope**: Exclusively answer questions related to Leva's business, products, and services.
+- **Restrictions**: Politely refuse unrelated questions with: "Sorry, I can only answer questions about Leva's business, products, and services" in the user's language (or English if unsupported).
+- **Decision Making**: Use your own reasoning to select the appropriate tool and determine when to use it.
+- **Language Handling**: 
+  - Detect the user's language from their input.
+  - Respond in the user's language if it is English, Czech, or Chinese.
+  - If the language is not supported, respond in English with: "Sorry, I don’t support your language yet. I’ll respond in English instead."
 
-Summer Houses & Garden Rooms
+## Tool Usage Rules
+- **General Product Questions** (e.g., "What products do you have?"):
+  - Call `get_general_product_info` and return its response as text in the user's language (English if unsupported).
+- **Requests for All Products** (e.g., "Show me all products"):
+  - Call the product search tool and return an interactive list (max 10 products) in the user's language (English if unsupported).
+- **Specific Product Requests** (e.g., "I need PAVO 90"):
+  - Call the product tool and return its output as-is (buttonTemplate dict), localized to the user's language (English if unsupported).
+- **Vague Follow-ups** (e.g., "Show me more"):
+  - Use the last product-related context to decide whether to show an interactive list or a product template, in the user's language (English if unsupported).
+- **Greetings** (e.g., "Hi"):
+  - Respond with a friendly greeting in the user's language (English if unsupported).
+- **Other Queries**:
+  - Use best judgment to respond or select a tool, but never answer unrelated questions.
+  - Localize all responses to the user's language (English if unsupported).
 
-Commercial Buildings (e.g., coffee shops)
+## Critical Rules
+- **Product Display**: Only show products when explicitly requested by the user.
+- **Tool Output**: Return tool responses as-is (no summarizing or reformatting), localized to the user's language (English if unsupported).
+- **Product Queries**: For specific product requests, call the product tool and return its output as-is (buttonTemplate dict), never as a text summary.
+- **Language Consistency**: Always prioritize responding in the user's language (English, Czech, or Chinese). Use English and notify the user if their language isn’t supported.
+- **Autonomy**: Rely on your own reasoning for tool selection and usage; the backend will not intervene.
 
-Construction Plans (PDF, DWG, IFC, GLB formats)
-
-Free Downloads (budget plans, sample units)
-
-MEP & BIM-ready files
-
-Augmented Reality previews & cost estimators
-MOST IMPORTANT ROLES TO FOLLOW:
-- Analyze the user question
-- Answer in User Language
-- Analyze deep use the user intent
-- Be polite, respectful and also concise
-- Always use the appropriate product search tool (search_products_with_handoff or search_one_product_with_handoff) for any user request that asks to search, find, show, or browse products, even if the request is a follow-up or uses vague language (e.g., 'then search', 'show me', 'find houses', 'I want to see more').
-- If the user asks to search for a specific type or number of houses (e.g., 'two bedroom houses'), use the search_products_with_handoff tool with the user's query.
-- If the user asks for a single product (e.g., 'a tiny house', 'one house'), use the search_one_product_with_handoff tool.
-- For any product search, you MUST return the tool's JSON response as-is, never summarize, reformat, or convert it to text. If you do not use the tool for a product query, that is a critical error.
-
-
-CRITICAL RULES:
-- For any follow-up or vague product search request (e.g., 'then search', 'show me more', 'find houses'), always call the appropriate product search tool with the user's last product-related query or context.
-- Never just reply with a confirmation (e.g., 'Okay, searching...')—always return the tool's response for product searches.
-- For single product queries, you MUST return the buttonTemplate tool response. For multiple products, you MUST return the interactive_list tool response. For generic browse requests, you MUST return the browse_all_properties_with_handoff tool response.
-
-EXAMPLES:
-- User: "then search" -> Call search_products_with_handoff with the last product-related query or context and return the tool's interactive_list response.
-- User: "show me more" -> Call browse_all_properties_with_handoff and return the tool's interactive_list response.
-- User: "find houses" -> Call search_products_with_handoff("houses") and return the tool's interactive_list response.
-- User: "I want a two bedroom house" -> Call search_products_with_handoff("two bedroom house") and return the tool's buttonTemplate or interactive_list response depending on the number of results.
-- User: "I want a tiny house" -> Call search_one_product_with_handoff("tiny house") and return the tool's buttonTemplate response.
-- User: "view_product_123" -> Call get_property_details_with_handoff("123") and return the tool's buttonTemplate response.
-- User: "Show me all properties" -> Call browse_all_properties_with_handoff and return the tool's interactive_list response.
-- User: "Show me houses" -> Call search_products_with_handoff("houses") and return the tool's interactive_list response.
-- User: "I want to see more" -> Call browse_all_properties_with_handoff and return the tool's interactive_list response.
-- User: "Give me one house" -> Call search_one_product_with_handoff("house") and return the tool's buttonTemplate response.
-""",
-model="o3-mini",
+## Examples
+- **User**: "What products do you have?" (in English)  
+  **Response**: Call `get_general_product_info` and return its text response in English.
+- **User**: "Jaké máte produkty?" (in Czech)  
+  **Response**: Call `get_general_product_info` and return its text response in Czech.
+- **User**: "你们有哪些产品?" (in Chinese)  
+  **Response**: Call `get_general_product_info` and return its text response in Chinese.
+- **User**: "Quels produits avez-vous?" (in French, unsupported)  
+  **Response**: "Sorry, I don’t support your language yet. I’ll respond in English instead." + Call `get_general_product_info` and return its text response in English.
+- **User**: "What is 2+2?" (in English)  
+  **Response**: "Sorry, I can only answer questions about Leva's business, products, and services" in English.""",
+    model="o3-mini",
     tools=[
         search_products_with_handoff,
-        search_one_product_with_handoff,
-        get_property_details_with_handoff,
-        browse_all_properties_with_handoff
+        search_one_product_with_handoff
     ]
 )
 
@@ -270,9 +266,10 @@ def normalize_interactive_list(response):
                 sections = list_obj.get("sections", [])
                 for section in sections:
                     for item in section.get("items", []):
+                        payload_val = str(item.get("payload", ""))
                         items.append({
-                            "id": str(item.get("id", "")),
-                            "payload": str(item.get("payload", "")),
+                            "id": payload_val,
+                            "payload": payload_val,
                             "title": clean_text(item.get("title", ""), 24),
                             "description": clean_text(item.get("description", ""), 72)
                         })
@@ -348,12 +345,49 @@ def fully_parse_json(obj):
             break
     return obj
 
-async def chat_with_agent_enhanced(user_message: str, chat_id: str = None, plain_text: bool = False) -> dict:
+def format_product_with_variants_button_template(product: dict) -> dict:
+    """
+    Format a product (with variants) as a WhatsApp buttonTemplate.
+    """
+    variants = product.get('variants', [])
+    variant_titles = [v.get('Option1 Value') for v in variants if v.get('Option1 Value')]
+    variant_str = f"Variants: {', '.join(variant_titles)}" if variant_titles else ""
+    description = product.get('description', '')
+    if variant_str:
+        description = f"{description}\n\n{variant_str}"
+    return {
+        "whatsapp_type": "buttonTemplate",
+        "template_id": "zoko_upsell_product_01",
+        "header": product.get('name', product.get('Title', 'Product')),
+        "body": description,
+        "image": product.get('image_url'),
+        "buttons": [
+            {"type": "reply", "title": "View Details", "payload": product.get('id', '')}
+        ]
+    }
+
+def send_products_with_variants_paginated(handles: list, lang: str = 'en', page: int = 1, page_size: int = 3) -> list:
+    """
+    Return a list of up to 3 buttonTemplates for products (with variants).
+    """
+    products = product_loader.get_products_paginated(handles, lang=lang, page=page, page_size=page_size)
+    return [format_product_with_variants_button_template(prod) for prod in products]
+
+def is_english(text):
+    ascii_ratio = sum(1 for c in text if ord(c) < 128) / max(1, len(text))
+    english_words = ["what", "do", "you", "offer", "services", "house", "plan", "hello", "hi", "how", "can", "i", "get", "the", "a", "an", "is", "are", "with", "for", "to", "in", "on", "and", "of", "or", "by", "from"]
+    text_lower = text.lower()
+    word_count = sum(1 for w in english_words if w in text_lower)
+    return ascii_ratio > 0.9 and word_count > 0
+
+async def chat_with_agent_enhanced(user_message: str, chat_id: str = None, lang: str = "en", plain_text: bool = False) -> dict:
     """Enhanced chat function with memory and handoff capabilities. Always returns a dict unless plain_text=True."""
-    logger.info(f"🤖 Processing message: {user_message[:50]}...")
+    start_time = time()
+    log_agent("CHAT", "started", chat_id=chat_id, message_preview=user_message[:50], lang=lang)
+    
     # Prevent processing bot's own error messages
     if user_message.startswith("I'm having trouble processing your request") or user_message.startswith("Sorry, something went wrong"):
-        logger.info("Skipping bot-generated error message to prevent loop")
+        log_agent("CHAT", "skipping_bot_message", chat_id=chat_id, reason="loop_prevention")
         return {
             "success": False,
             "message": "Loop detected, skipping response",
@@ -361,107 +395,137 @@ async def chat_with_agent_enhanced(user_message: str, chat_id: str = None, plain
             "skip_response": True
         }
     
+    # Fallback: if lang is not 'en' or 'cs', use 'en'
+    if lang not in ["en", "cs"]:
+        lang = "en"
+    # If the message is in English, force English
+    if is_english(user_message):
+        lang = "en"
+    
     # Build context with conversation history
     context = memory.build_context(chat_id, user_message) if chat_id else user_message
     try:
-        result = await Runner.run(agent, context, max_turns=5)
-        logger.info(f"Agent raw output: {result.final_output}")
+        log_agent("RUNNER", "executing", chat_id=chat_id, max_turns=15, lang=lang)
+        result = await Runner.run(agent, context, max_turns=15)
+        log_agent("RUNNER", "completed", chat_id=chat_id, output_length=len(result.final_output), lang=lang)
+        
+        # Optimized memory operations - only save essential data
         if chat_id:
-            memory.save_message(chat_id, "user", user_message)
-            memory.save_message(chat_id, "assistant", result.final_output)
-            summary = await summarize_conversation(memory.get_memory(chat_id))
-            summary_memory.save_summary(chat_id, summary)
+            # Save messages asynchronously without blocking
+            try:
+                memory.save_message(chat_id, "user", user_message)
+                memory.save_message(chat_id, "assistant", result.final_output)
+                # Only generate summary every 5 messages to reduce overhead
+                recent_messages = memory.get_memory(chat_id)
+                if len(recent_messages) % 5 == 0:  # Every 5th message
+                    log_agent("MEMORY", "generating_summary", chat_id=chat_id, message_count=len(recent_messages))
+                    summary = await summarize_conversation(recent_messages)
+                    summary_memory.save_summary(chat_id, summary)
+            except Exception as e:
+                log_error("MEMORY", str(e), chat_id=chat_id)
+        
         output_text = result.final_output.strip()
         try:
             # Recursively parse any stringified JSON until a dict is obtained
             response_data = fully_parse_json(output_text)
-            logger.debug(f"Parsed agent output: {response_data}")
+            log_agent("PARSING", "json_parsed", chat_id=chat_id, is_dict=isinstance(response_data, dict), lang=lang)
             # If the agent output is a tool call plan, execute the tool and return its result
             if isinstance(response_data, dict) and "tool_code" in response_data:
-                logger.info(f"Detected tool call plan: {response_data}")
+                log_agent("TOOL", "executing_plan", chat_id=chat_id, tool_code=response_data["tool_code"], lang=lang)
                 tool_code = response_data["tool_code"]
                 # Extract tool arguments from 'tool_args' or top-level keys
                 tool_args = response_data.get("tool_args", {})
-                # If tool_args is empty, try to build from top-level keys (e.g., 'query', 'property_id', 'limit')
-                if not tool_args:
-                    tool_args = {k: v for k, v in response_data.items() if k not in ("tool_code", "tool_name")}
+                # Always inject lang into tool_args
+                tool_args["lang"] = lang
                 # Map tool_code to the actual underlying function (not the Tool object)
                 tool_func_map = {
                     "search_products_with_handoff": search_products_with_handoff_func,
                     "search_one_product_with_handoff": search_one_product_with_handoff_func,
-                    "get_property_details_with_handoff": get_property_details_with_handoff_func,
-                    "browse_all_properties_with_handoff": browse_all_properties_with_handoff_func
                 }
                 tool_func = tool_func_map.get(tool_code)
                 if tool_func:
-                    logger.info(f"Executing tool: {tool_code} with args: {tool_args}")
+                    log_agent("TOOL", "executing", chat_id=chat_id, tool_code=tool_code, args=tool_args, lang=lang)
                     try:
                         tool_result = tool_func(**tool_args)
                         response_data = fully_parse_json(tool_result)
-                        logger.debug(f"Tool result after parsing: {response_data}")
+                        log_agent("TOOL", "completed", chat_id=chat_id, tool_code=tool_code, success=True, lang=lang)
                     except Exception as e:
-                        logger.error(f"Error executing tool {tool_code}: {e}")
+                        log_error("TOOL", str(e), chat_id=chat_id, tool_code=tool_code, lang=lang)
                         return {
                             "whatsapp_type": "text",
                             "message": f"Sorry, there was an error running the tool: {tool_code}."
                         }
                 else:
-                    logger.error(f"Unknown tool_code in plan: {tool_code}")
+                    log_error("TOOL", f"Unknown tool_code: {tool_code}", chat_id=chat_id, lang=lang)
                     return {
                         "whatsapp_type": "text",
                         "message": f"Sorry, I couldn't process your request (unknown tool)."
                     }
+            
             # Normalize interactive list and buttonTemplate if needed
             if isinstance(response_data, dict):
                 # If the response is a tool response dict (e.g., {search_products_with_handoff_response: ...})
                 for v in response_data.values():
                     if isinstance(v, dict) and v.get("whatsapp_type") == "interactive_list":
-                        logger.info("Normalizing interactive_list from nested dict")
+                        log_agent("NORMALIZE", "interactive_list_from_nested", chat_id=chat_id, lang=lang)
                         return normalize_interactive_list(v)
                     if isinstance(v, dict) and v.get("whatsapp_type") == "buttonTemplate":
-                        logger.info("Normalizing buttonTemplate from nested dict")
+                        log_agent("NORMALIZE", "buttonTemplate_from_nested", chat_id=chat_id, lang=lang)
                         return normalize_button_template(v)
                     if isinstance(v, list) and v and isinstance(v[0], dict):
                         if v[0].get("whatsapp_type") == "interactive_list":
-                            logger.info("Normalizing interactive_list from nested list")
+                            log_agent("NORMALIZE", "interactive_list_from_nested_list", chat_id=chat_id, lang=lang)
                             return normalize_interactive_list(v[0])
                         if v[0].get("whatsapp_type") == "buttonTemplate":
-                            logger.info("Normalizing buttonTemplate from nested list")
+                            log_agent("NORMALIZE", "buttonTemplate_from_nested_list", chat_id=chat_id, lang=lang)
                             return normalize_button_template(v[0])
                 # If the response itself is a buttonTemplate, normalize it
                 if response_data.get("whatsapp_type") == "buttonTemplate":
-                    logger.info("Normalizing buttonTemplate from root dict")
+                    log_agent("NORMALIZE", "buttonTemplate_from_root", chat_id=chat_id, lang=lang)
                     return normalize_button_template(response_data)
                 if response_data.get("whatsapp_type") == "interactive_list":
-                    logger.info("Normalizing interactive_list from root dict")
+                    log_agent("NORMALIZE", "interactive_list_from_root", chat_id=chat_id, lang=lang)
                     return normalize_interactive_list(response_data)
+            
             # If plain_text is requested and response_data is a dict with a 'message', return just the message
             if plain_text:
                 if isinstance(response_data, dict) and "message" in response_data:
                     return response_data["message"]
                 return str(response_data)
+            
             # Otherwise, always return a dict
             if isinstance(response_data, dict):
+                response_time = time() - start_time
+                log_agent("CHAT", "completed", chat_id=chat_id, response_type=response_data.get("whatsapp_type"), response_time=f"{response_time:.3f}s", lang=lang)
                 return response_data
+            
             # If the model returned a string, wrap it in a dict
-            logger.warning(f"Agent output was not a dict, wrapping in dict: {response_data}")
+            log_agent("CHAT", "wrapping_string", chat_id=chat_id, response_type="text", lang=lang)
             return {
                 "success": True,
                 "message": str(response_data),
                 "whatsapp_type": "text"
             }
         except Exception as e:
-            logger.error(f"Failed to parse agent output: {output_text}, error: {e}")
+            log_error("PARSING", str(e), chat_id=chat_id, output_text=output_text[:100], lang=lang)
             response_message = "I'm here to help with Leva's homes, pools, and spas. Please ask about our offerings!"
             return {
                 "whatsapp_type": "text",
                 "message": response_message
             }
     except Exception as e:
-        logger.error(f"❌ Agent error for message '{user_message}': {str(e)}", exc_info=True)
+        response_time = time() - start_time
+        log_error("CHAT", str(e), chat_id=chat_id, response_time=f"{response_time:.3f}s", lang=lang)
         response_message = "I'm having trouble processing your request right now. Please try again."
         return {
             "success": False,
             "message": response_message,
             "whatsapp_type": "text"
         }
+
+
+async def search_and_respond_to_user(user_input: str, chat_id: str = "test", lang: str = "en") -> dict:
+    """
+    Given user input, returns either an interactive list or a product template (buttonTemplate) as WhatsApp dict.
+    """
+    return await chat_with_agent_enhanced(user_input, chat_id=chat_id, lang=lang)

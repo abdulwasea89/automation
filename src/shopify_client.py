@@ -5,8 +5,11 @@ import logging
 from typing import List, Dict, Any
 import requests
 from requests.auth import HTTPBasicAuth
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from src.config import settings
 from src.logger import get_logger
+import asyncio
 
 logger = get_logger("shopify_client")
 logger.setLevel(logging.INFO)
@@ -23,14 +26,34 @@ AUTH = HTTPBasicAuth(settings.SHOPIFY_API_KEY, settings.SHOPIFY_API_PASSWORD)
 # Shopify API max limit is 100 per request
 MAX_SHOPIFY_LIMIT = 100
 
-def get_all_products(limit: int = 100) -> List[Dict[str, Any]]:
-    """Fetch all products from Shopify as dicts. Limit capped to 100 per Shopify API."""
+# Create session with connection pooling
+session = requests.Session()
+
+# Configure retry strategy
+retry_strategy = Retry(
+    total=3,
+    backoff_factor=1,
+    status_forcelist=[429, 500, 502, 503, 504],
+)
+
+# Configure adapter with connection pooling
+adapter = HTTPAdapter(
+    max_retries=retry_strategy,
+    pool_connections=5,
+    pool_maxsize=10
+)
+
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+
+async def get_all_products(limit: int = 100) -> List[Dict[str, Any]]:
+    """Fetch all products from Shopify as dicts with connection pooling. Limit capped to 100 per Shopify API."""
     limit = min(limit, MAX_SHOPIFY_LIMIT)
     logger.info(f"Using store: {settings.SHOPIFY_STORE_NAME}, key: {settings.SHOPIFY_API_KEY[:4]}..., pass: {settings.SHOPIFY_API_PASSWORD[:4]}...")
     url = f"{BASE_URL}/products.json?limit={limit}"
     try:
         logger.info(f"Fetching products from Shopify with limit={limit} via HTTP...")
-        resp = requests.get(url, auth=AUTH)
+        resp = await asyncio.to_thread(lambda: session.get(url, auth=AUTH, timeout=30))
         resp.raise_for_status()
         data = resp.json()
         logger.info(f"Raw products HTTP response: {data}")
@@ -42,10 +65,10 @@ def get_all_products(limit: int = 100) -> List[Dict[str, Any]]:
         return []
 
 def get_product_by_id(product_id: int) -> Dict[str, Any]:
-    """Fetch a single product by ID."""
+    """Fetch a single product by ID with connection pooling."""
     url = f"{BASE_URL}/products/{product_id}.json"
     try:
-        resp = requests.get(url, auth=AUTH)
+        resp = session.get(url, auth=AUTH, timeout=30)
         resp.raise_for_status()
         data = resp.json()
         logger.info(f"Raw product by ID HTTP response: {data}")
@@ -55,11 +78,11 @@ def get_product_by_id(product_id: int) -> Dict[str, Any]:
         return {}
 
 def search_products_by_keywords(query: str, limit: int = 100) -> List[Dict[str, Any]]:
-    """Search products by keywords. Limit capped to 100 per Shopify API."""
+    """Search products by keywords with connection pooling. Limit capped to 100 per Shopify API."""
     limit = min(limit, MAX_SHOPIFY_LIMIT)
     url = f"{BASE_URL}/products.json?limit={limit}"
     try:
-        resp = requests.get(url, auth=AUTH)
+        resp = session.get(url, auth=AUTH, timeout=30)
         resp.raise_for_status()
         data = resp.json()
         logger.info(f"Raw products HTTP response for search: {data}")

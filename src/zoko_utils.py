@@ -223,9 +223,27 @@ class ZokoUtils:
         # Format products for interactive list
         items = []
         for prod in products[:10]:
+            # Build a concise, info-rich summary for WhatsApp/Zoko
+            type_ = prod.get('type', '')
+            cat = prod.get('category', '')
+            vendor = prod.get('vendor', '')
+            price = prod.get('price', 'N/A')
+            desc = prod.get('description', '')
+            import re
+            desc = re.sub('<[^<]+?>', '', desc)
+            summary_parts = []
+            if type_ or cat:
+                summary_parts.append(f"{type_ or ''} {cat or ''}".strip())
+            if vendor:
+                summary_parts.append(f"Brand: {vendor}")
+            if price and price != 'N/A':
+                summary_parts.append(f"Price: {price}")
+            if desc:
+                summary_parts.append(desc[:40])
+            summary = " | ".join([p for p in summary_parts if p])
             items.append({
                 "title": prod.get('title', 'Product')[:24],
-                "description": prod.get('description', '')[:72],
+                "description": summary[:72],
                 "payload": f"product_{prod.get('id', 'unknown')}"
             })
         return {
@@ -304,6 +322,63 @@ class ZokoUtils:
         
         return debug_info
 
+    def fetch_whatsapp_catalog_products(self, limit: int = 20) -> List[Dict]:
+        """Fetch products from WhatsApp Business Catalog via Zoko API."""
+        try:
+            url = f"{self.api_url}/catalog/list"
+            payload = {
+                "channel": "whatsapp",
+                "limit": limit
+            }
+            response = requests.post(url, json=payload, headers=self.headers, timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                products = data.get("products", [])
+                logger.info(f"Fetched {len(products)} products from WhatsApp catalog.")
+                return products
+            else:
+                logger.error(f"Failed to fetch WhatsApp catalog: {response.status_code} {response.text}")
+                return []
+        except Exception as e:
+            logger.error(f"Error fetching WhatsApp catalog: {e}")
+            return []
+
+    def format_catalog_for_whatsapp_list(self, products: List[Dict]) -> Dict:
+        """Format WhatsApp catalog products for WhatsApp interactive list."""
+        if not products:
+            return {
+                "whatsapp_type": "text",
+                "message": "No catalog products found."
+            }
+        items = []
+        for prod in products[:10]:
+            items.append({
+                "id": prod.get('id', ''),
+                "payload": prod.get('id', ''),
+                "title": prod.get('name', 'Product')[:24],
+                "description": prod.get('description', '')[:60]
+            })
+        return {
+            "whatsapp_type": "interactive_list",
+            "interactiveList": {
+                "body": {"text": f"Found {len(products)} catalog products."},
+                "list": {
+                    "title": "WhatsApp Catalog",
+                    "header": {"text": "WhatsApp Catalog"},
+                    "sections": [
+                        {
+                            "title": "Catalog",
+                            "items": items
+                        }
+                    ]
+                }
+            }
+        }
+
+    def send_button_template_via_zoko(self, chat_id, template_id, args):
+        from src.zoko_client import zoko_client
+        return zoko_client.send_button_template(chat_id, template_id, args)
+
 # Global utility instance
 zoko_utils = ZokoUtils()
 
@@ -359,6 +434,102 @@ def send_ai_chosen_template(chat_id: str, template_id: str, template_args: list,
         return False
     # Use format_template_args to pad/truncate
     args = zoko_utils.format_template_args(template_id, template_args)
+    return zoko_utils.send_button_template_via_zoko(chat_id, template_id, args) 
+
+import re
+
+def clean_html(text):
+    if not text:
+        return ""
+    text = re.sub(r'<[^>]+>', '', str(text))  # Remove HTML tags
+    return text.strip()
+
+def truncate(text, maxlen):
+    return text[:maxlen] if text else ""
+
+def prepare_zoko_upsell_args(product: dict) -> list:
+    import re
+    import json
+    logger.info(f"[ZOKO DEBUG] Product dict for template: {json.dumps(product, indent=2, ensure_ascii=False)}")
+    # Image
+    image = (
+        product.get('image_url') or
+        product.get('Image Src') or
+        product.get('image') or
+        (product.get('images', [{}])[0].get('src') if isinstance(product.get('images'), list) and product.get('images') else None) or
+        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400"
+    )
+    # Header
+    header = product.get('name') or product.get('Title') or product.get('title') or "Product"
+    header = re.sub(r'<[^<]+?>', '', str(header)).strip()[:24]
+    # Body/description
+    body = product.get('description') or product.get('Body (HTML)') or product.get('body_html') or f"Order {header}"
+    body = re.sub(r'<[^<]+?>', '', str(body))
+    body = re.sub(r'[*_`~\\\-]', '', body)
+    body = re.sub(r'[\U00010000-\U0010ffff]', '', body)
+    body = body.strip()[:200] or f"Order {header}"
+    # URL/payload
+    handle = product.get('Handle') or product.get('handle') or product.get('id') or ""
+    payload = product.get('url') or (f"https://www.theleva.com/products/{handle}" if handle else "https://www.theleva.com/")
+    # Log if any field is a fallback
+    if not product.get('image_url') and not product.get('Image Src') and not product.get('image'):
+        logger.warning(f"[ZOKO WARNING] Product missing image, using placeholder. Product: {json.dumps(product, ensure_ascii=False)}")
+    if not product.get('description') and not product.get('Body (HTML)') and not product.get('body_html'):
+        logger.warning(f"[ZOKO WARNING] Product missing description, using fallback. Product: {json.dumps(product, ensure_ascii=False)}")
+    if not product.get('url') and not handle:
+        logger.warning(f"[ZOKO WARNING] Product missing url and handle, using homepage. Product: {json.dumps(product, ensure_ascii=False)}")
+    args = [image, header, body, payload]
+    logger.info(f"[ZOKO DEBUG] Final template args: {args}")
+    return [str(a) for a in args] 
+
+async def handle_agent_response(chat_id: str, user_text: str, response: dict):
     from src.zoko_client import zoko_client
-    logger.info(f"Sending template {template_id} to {chat_id} with args: {args}")
-    return zoko_client.send_button_template(chat_id, template_id, args) 
+    from src.tools import is_general_product_info_query, send_text_message, send_interactive_list_message
+    GENERAL_PRODUCT_INFO_TEXT = (
+        "We offer a wide range of modular architectural products, including:\n\n"
+        "* Tiny Houses & Family Homes (with versatile L- and U-shaped layouts)\n"
+        "* Swimming Pools & Natural Ponds\n"
+        "* Outdoor Spas & Wellness Areas\n"
+        "* Summer Houses & Garden Rooms\n"
+        "* Commercial Buildings (like coffee shops and more)\n"
+        "* Construction Plans in PDF, DWG, IFC, and GLB formats\n"
+        "* Free Downloads (budget plans and sample units)\n"
+        "* MEP & BIM-ready files\n"
+        "* Augmented Reality previews & cost estimators\n\n"
+        "If you’d like to know more about any of these products or need additional details, just let me know!"
+    )
+    # General info
+    if is_general_product_info_query(user_text):
+        await send_text_message(chat_id, GENERAL_PRODUCT_INFO_TEXT)
+        return
+    # Button template
+    if response.get('whatsapp_type') == 'buttonTemplate':
+        await zoko_client.send_button_template(chat_id, response['template_id'], response['template_args'])
+        return
+    # Interactive list (flat)
+    if response.get('whatsapp_type') == 'interactive_list' and all(k in response for k in ('header', 'body', 'items')):
+        await send_interactive_list_message(chat_id, response['header'], response['body'], response['items'])
+        return
+    # Interactive list (nested)
+    if response.get('whatsapp_type') == 'interactive_list' and 'interactiveList' in response:
+        interactive = response['interactiveList']
+        if interactive and 'list' in interactive:
+            list_obj = interactive['list']
+            body = interactive.get('body', {}).get('text', 'Choose an option:')
+            sections = list_obj.get('sections', [])
+            items = []
+            for section in sections:
+                for item in section.get('items', []):
+                    desc = item.get('description', '')
+                    if desc and len(desc) > 50:
+                        desc = desc[:47] + '...'
+                    items.append({
+                        'payload': str(item.get('payload', '')),
+                        'title': item.get('title', '')[:24],
+                        'description': desc or 'No description available'
+                    })
+            items = [item for item in items if item['title'] and item['payload']]
+            await send_interactive_list_message(chat_id, list_obj.get('title', 'LEVA Houses'), body, items)
+            return
+    # Fallback: send as text
+    await send_text_message(chat_id, response.get('message', str(response))) 
