@@ -191,7 +191,7 @@ def simple_word_forms(word):
     if word.endswith('ed'):
         forms.append(word[:-2])
     return list(dict.fromkeys([f for f in forms if f]))
-
+       
 async def get_product_by_id(product_id: str, lang: str = 'en') -> Optional[Dict[str, Any]]:
     cleaned = re.sub(r'<.*?>', '', product_id or '')
     cleaned = cleaned.replace('🏡', '').replace('\n', ' ').replace('\r', ' ')
